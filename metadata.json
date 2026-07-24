@@ -1,0 +1,6 @@
+{
+  "name": "Cybercafe Management System",
+  "description": "Complete Cybercafé & Gaming Hub Management System with real-time PC sessions, POS, wallet top-up, PC booking, admin analytics, and mobile companion app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

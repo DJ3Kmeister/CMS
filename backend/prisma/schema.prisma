@@ -1,0 +1,156 @@
+// Prisma Schema for Cybercafé Management Backend
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum VipTier {
+  STANDARD
+  VIP
+  PRO
+}
+
+enum PcStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  LOCKED
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  TERMINATED
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  DELIVERED
+  CANCELLED
+}
+
+enum TransactionType {
+  TOP_UP
+  SESSION_FEE
+  POS_PURCHASE
+  REFUND
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         Role          @default(CUSTOMER)
+  vipTier      VipTier       @default(STANDARD)
+  balance      Float         @default(0.0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  sessions     Session[]
+  orders       Order[]
+  reservations Reservation[]
+  transactions Transaction[]
+}
+
+model Computer {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  ip          String    @unique
+  hourlyRate  Float     @default(4.0)
+  status      PcStatus  @default(AVAILABLE)
+  specs       String
+  category    String    @default("Standard Rig")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sessions     Session[]
+  reservations Reservation[]
+}
+
+model Session {
+  id               String        @id @default(uuid())
+  userId           String
+  computerId       String
+  startTime        DateTime      @default(now())
+  endTime          DateTime?
+  allocatedMinutes Int           @default(60)
+  elapsedSeconds   Int           @default(0)
+  totalCost        Float         @default(0.0)
+  status           SessionStatus @default(ACTIVE)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  computer Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  category  String
+  price     Float
+  stock     Int      @default(0)
+  icon      String   @default("Cookie")
+  createdAt DateTime @default(now())
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  userId      String
+  computerId  String?
+  totalPrice  Float
+  status      OrderStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Reservation {
+  id            String   @id @default(uuid())
+  userId        String
+  computerId    String
+  date          DateTime
+  timeSlot      String
+  durationHours Int      @default(2)
+  totalPrice    Float
+  status        String   @default("CONFIRMED")
+  createdAt     DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  computer Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  type        TransactionType
+  amount      Float
+  description String
+  createdAt   DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

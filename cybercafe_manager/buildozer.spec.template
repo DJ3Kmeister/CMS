@@ -1,0 +1,77 @@
+# =============================================================================
+# DEK-DRIVSIM CyberCafe - Gabarit de Configuration Buildozer BULLETPROOF (spec)
+# Copiez-collez l'intégralité de ce fichier dans votre "buildozer.spec" sous WSL
+# =============================================================================
+
+[app]
+
+# (str) Titre de votre application mobile
+title = DEK-DRIVSIM
+
+# (str) Nom du paquet système (sans espaces ni caractères spéciaux)
+package.name = dekdrivsim
+
+# (str) Domaine unique du paquet
+package.domain = org.dekdrivsim
+
+# (str) Dossier racine contenant le fichier "main.py"
+source.dir = .
+
+# (list) Extensions de fichiers à inclure lors du packaging
+source.include_exts = py,png,jpg,html,js,css,db,crt,key
+
+# (list) Dossiers spécifiques à inclure
+source.include_patterns = cybercafe_manager/*,templates/*,static/*,static/images/*,static/css/*,static/js/*
+
+# (str) Version de l'application
+version = 2.5
+
+# =============================================================================
+# 🎨 ICONE ET ÉCRAN DE DÉMARRAGE (PRE-SPLASH) PERSONNALISÉS
+# =============================================================================
+
+icon.filename = %(source.dir)s/cybercafe_manager/static/images/logo.png
+presplash.filename = %(source.dir)s/cybercafe_manager/static/images/presplash.png
+android.presplash_color = #04050a
+
+# =============================================================================
+# 📦 DÉPENDANCES ET SYSTÈME
+# =============================================================================
+
+requirements = python3, kivy, pyjnius, flask, sqlite3, jinja2, werkzeug, itsdangerous, blinker
+orientation = portrait
+fullscreen = 1
+
+# =============================================================================
+# 🤖 PARAMÈTRES ANDROID BULLETPROOF & DEBLOCAGE HTTP (usesCleartextTraffic)
+# =============================================================================
+
+# Permissions cruciales pour le réseau, le Wi-Fi et le maintien en éveil (WAKE_LOCK)
+android.permissions = INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE, WAKE_LOCK
+
+# --- AUTORISATION NATIVE ET INVIOLABLE DU TRAFIC CLAIR HTTP (usesCleartextTraffic) ---
+# Cette ligne force Android à autoriser les connexions locales http://127.0.0.1:5000 sans erreur !
+android.manifest.application_attributes = android:usesCleartextTraffic="true"
+android.manifest.attributes = android:usesCleartextTraffic="true"
+
+# --- DEBLOCAGE RESEAU SECURISE ET INVIOLABLE VIA CONFIG XML (Network Security Config) ---
+# Solution de rechange absolue qui force l'autorisation HTTP sur tous les Android 9 à 14 !
+android.network_security_config = %(source.dir)s/network_security_config.xml
+
+# (int) Version d'API Android cible pour la compilation (Android 14)
+# Requis à 34 pour être compatible avec l'Android NDK r28c de Kivy et Gradle !
+android.api = 34
+
+# (int) Version d'API Android minimale supportée (Android 5.0 Lollipop)
+android.minapi = 21
+
+# Indique que l'application doit tourner comme service de premier plan persistant
+android.foreground_service = true
+
+# =============================================================================
+# 🛠️ OPTIONS DE COMPILATION
+# =============================================================================
+
+[buildozer]
+log_level = 2
+warn_on_root = 1

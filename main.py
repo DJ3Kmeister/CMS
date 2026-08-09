@@ -3,7 +3,7 @@
 DEK-DRIVSIM CyberCafe - Android APK Master Entry Point (main.py)
 Ce fichier est le point d'entrée officiel pour la compilation Buildozer.
 Il démarre le serveur Flask en arrière-plan et enveloppe l'interface d'administration
-dans un composant Webview natif Android stable via Pyjnius.
+dans un composant Webview natif Android stable.
 Utilise Clock.schedule_once pour éviter tout conflit de thread et écran noir au démarrage.
 """
 
@@ -25,31 +25,21 @@ from kivy.clock import Clock
 # --- CONSTANTES ---
 FLASK_HOST = '127.0.0.1'
 FLASK_PORT = 5000
-FLASK_URL = f"https://{FLASK_HOST}:{FLASK_PORT}"
+FLASK_URL = f"http://{FLASK_HOST}:{FLASK_PORT}"
 MAX_RETRIES = 40
 RETRY_DELAY = 0.5
 
-# Récupère les chemins d'accès vers les certificats SSL pré-générés
-MANAGER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cybercafe_manager')
-CERT_PATH = os.path.join(MANAGER_DIR, 'certs', 'server.crt')
-KEY_PATH = os.path.join(MANAGER_DIR, 'certs', 'server.key')
-
 def start_flask_server():
-    """Démarre Flask en HTTPS avec le certificat statique embarqué."""
+    """Démarre Flask en HTTP standard sur localhost."""
     try:
-        # Vérification d'existence des fichiers certificats avant lancement
-        if not os.path.exists(CERT_PATH) or not os.path.exists(KEY_PATH):
-            raise FileNotFoundError(f"Fichiers SSL absents: \nCRT: {CERT_PATH}\nKEY: {KEY_PATH}")
-            
         import app as flask_backend
-        print(f"[FLASK] Démarrage HTTPS sur {FLASK_HOST}:{FLASK_PORT}")
+        print(f"[FLASK] Démarrage HTTP sur {FLASK_HOST}:{FLASK_PORT}")
         flask_backend.app.run(
             host=FLASK_HOST,
             port=FLASK_PORT,
             debug=False,
             threaded=True,
-            use_reloader=False,
-            ssl_context=(CERT_PATH, KEY_PATH)
+            use_reloader=False
         )
     except Exception as e:
         print(f"[FLASK ERROR] {e}")
@@ -58,22 +48,17 @@ def start_flask_server():
             f.write(str(e))
 
 def wait_for_server(url, max_retries=MAX_RETRIES, delay=RETRY_DELAY):
-    """Attend que le serveur HTTPS réponde (en ignorant la vérification de certificat)."""
-    import ssl
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    
+    """Attend que le serveur HTTP réponde."""
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, method='HEAD')
-            urllib.request.urlopen(req, timeout=1, context=ctx)
-            print(f"[FLASK] Serveur HTTPS prêt ({attempt + 1} tentatives)")
+            urllib.request.urlopen(req, timeout=1)
+            print(f"[FLASK] Serveur HTTP prêt ({attempt + 1} tentatives)")
             return True
         except Exception:
             time.sleep(delay)
             
-    print("[FLASK ERROR] Serveur HTTPS injoignable")
+    print("[FLASK ERROR] Serveur HTTP injoignable")
     return False
 
 def load_url_on_ui_thread(webview, url):
@@ -125,19 +110,19 @@ class DEKDRIVSIMApp(App):
 
     def _init_desktop(self):
         """Démarre le navigateur système sur PC."""
-        self.lbl_status.text = "DEK-DRIVSIM HTTPS actif\nOuverture de votre navigateur..."
+        self.lbl_status.text = "DEK-DRIVSIM HTTP actif\nOuverture de votre navigateur..."
         def open_browser():
             if wait_for_server(FLASK_URL):
                 import webbrowser
                 webbrowser.open(FLASK_URL)
             else:
-                self.update_error_ui("Le serveur HTTPS local est injoignable.")
+                self.update_error_ui("Le serveur HTTP local est injoignable.")
         threading.Thread(target=open_browser, daemon=True).start()
 
     def _init_android(self):
-        """Mode Android natif : WebView avec toutes les permissions et SSL bypass."""
+        """Mode Android natif : WebView standard avec toutes les permissions."""
         from android.permissions import request_permissions, Permission
-        from jnius import autoclass, PythonJavaClass, java_method
+        from jnius import autoclass
         from android.runnable import run_on_ui_thread
 
         # 1. Demande de permissions
@@ -151,27 +136,14 @@ class DEKDRIVSIMApp(App):
         except Exception as e:
             print(f"[PERMISSIONS ERROR] {e}")
 
-        # 2. Client WebView SSL bypass customisé
-        class CustomWebViewClient(PythonJavaClass):
-            __javaclass__ = 'android/webkit/WebViewClient'
-            
-            @java_method('(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V')
-            def onReceivedSslError(self, view, handler, error):
-                # BYPASS SSL : Ignore l'erreur du certificat auto-signé local
-                handler.proceed()
-
-        # 3. Création WebView sur le UI Thread natif d'Android
+        # 2. Création WebView sur le UI Thread natif d'Android
         @run_on_ui_thread
         def create_webview():
             try:
-                # Double vérification de l'existence des fichiers certificats avant de basculer l'affichage
-                if not os.path.exists(CERT_PATH) or not os.path.exists(KEY_PATH):
-                    self.update_error_ui(f"Certificats SSL introuvables sur le téléphone !\nCRT: {CERT_PATH}\nKEY: {KEY_PATH}")
-                    return
-
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
                 Activity = PythonActivity.mActivity
                 WebView = autoclass('android.webkit.WebView')
+                WebViewClient = autoclass('android.webkit.WebViewClient')
                 
                 webview = WebView(Activity)
                 settings = webview.getSettings()
@@ -186,20 +158,17 @@ class DEKDRIVSIMApp(App):
                 settings.setBuiltInZoomControls(True)
                 settings.setDisplayZoomControls(False)
                 
-                # Passe l'entier literal 0 (MIXED_CONTENT_ALWAYS_ALLOW) au lieu de l'attribut statique
-                # pour contourner de manière définitive les bugs de réflexion Pyjnius !
-                settings.setMixedContentMode(0)
+                settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
                 
-                webview.setWebViewClient(CustomWebViewClient())
+                webview.setWebViewClient(WebViewClient())
                 Activity.setContentView(webview)
-                print("[WEBVIEW] Instance native HTTPS créée")
+                print("[WEBVIEW] Instance native HTTP créée")
 
-                # 4. Attente asynchrone de Flask et chargement de l'URL
+                # 3. Attente asynchrone de Flask et chargement de l'URL
                 def wait_and_load():
                     if wait_for_server(FLASK_URL):
                         load_url_on_ui_thread(webview, FLASK_URL)
                     else:
-                        # Lit l'erreur du crash de Flask si disponible
                         flask_err = "Le serveur n'a pas répondu."
                         if os.path.exists("flask_error_crash.txt"):
                             with open("flask_error_crash.txt", "r") as f:

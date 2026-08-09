@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 DEK-DRIVSIM CyberCafe - Agent Client Windows Kiosk Invincible
-Version 100% Fonctionnelle et Synchrone avec le Serveur Flask
+Version 100% Autonome (Auto-Discovery), Fonctionnelle et Synchrone
 """
 
 import json
@@ -12,6 +12,8 @@ import urllib.request
 import urllib.error
 import ctypes
 from ctypes import wintypes
+import socket
+import concurrent.futures
 
 try:
     import winreg
@@ -20,20 +22,10 @@ except ImportError:
     HAS_WINREG = False
 
 # =============================================================================
-# CONFIGURATION
+# CONSTANTES ET CONFIGURATION WIN32
 # =============================================================================
-SERVER_IP = "127.0.0.1"
-SERVER_PORT = 5000
-PC_NAME = "PC-01"
-POLL_INTERVAL_MS = 3000  # Intervalle de vérification du statut (3 secondes)
+POLL_INTERVAL_MS = 2000  # Intervalle de vérification du statut (2 secondes)
 
-SERVER_URL = f"http://{SERVER_IP}:{SERVER_PORT}"
-CLIENT_URL = f"{SERVER_URL}/client/{PC_NAME}"
-STATUS_API_URL = f"{SERVER_URL}/api/client/status/{PC_NAME}"
-
-# =============================================================================
-# CONSTANTES WIN32
-# =============================================================================
 HC_ACTION = 0
 WH_KEYBOARD_LL = 13
 PM_REMOVE = 0x0001
@@ -119,6 +111,60 @@ def ensure_admin():
     ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, f'"{sys.argv[0]}" {params}' if not getattr(sys, 'frozen', False) else params, None, SW_SHOWNORMAL)
     sys.exit(0)
 
+# =============================================================================
+# AUTO-DETECTION DU SERVEUR SUR LE SOUS-RÉSEAU LOCAL (PORT 5000)
+# =============================================================================
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
+def check_ip_for_server(ip, pc_name):
+    url = f"http://{ip}:5000/api/client/status/{pc_name}"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=0.8) as response:
+            if response.status == 200:
+                return ip
+    except Exception:
+        pass
+    return None
+
+def discover_server(pc_name):
+    """Scan rapide du sous-réseau en parallèle sur 50 threads."""
+    local_ip = get_local_ip()
+    if local_ip == '127.0.0.1':
+        return '127.0.0.1'
+
+    parts = local_ip.split('.')
+    if len(parts) != 4:
+        return '127.0.0.1'
+
+    subnet_prefix = '.'.join(parts[:3])
+    ips_to_scan = [f"{subnet_prefix}.{i}" for i in range(1, 255)]
+    ips_to_scan.insert(0, '127.0.0.1')  # Tester d'abord en local
+
+    print(f"[AUTO-DISCOVERY] Scan de la plage d'IP {subnet_prefix}.X ...")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = {executor.submit(check_ip_for_server, ip, pc_name): ip for ip in ips_to_scan}
+        for future in concurrent.futures.as_completed(futures):
+            found_ip = future.result()
+            if found_ip:
+                print(f"[AUTO-DISCOVERY] Serveur local identifié sur : {found_ip}")
+                return found_ip
+
+    return '127.0.0.1'
+
+# =============================================================================
+# DEK CLIENT AGENT CLASS
+# =============================================================================
 class DEKClientAgent:
     REG_PATH = r"SYSTEM\CurrentControlSet\Control\Keyboard Layout"
     REG_VALUE = "Scancode Map"
@@ -133,6 +179,13 @@ class DEKClientAgent:
         self._status_thread = None
         self._registry_modified = False
         self.is_unlocked = False
+        self.is_kiosk_hidden = False
+
+        # Récupération automatique du nom du poste PC Windows
+        self.pc_name = socket.gethostname()
+        self.server_ip = "127.0.0.1"
+        self.client_url = ""
+        self.status_api_url = ""
 
     def setup_registry(self):
         if not HAS_WINREG:
@@ -185,9 +238,15 @@ class DEKClientAgent:
     def keyboard_hook(self, nCode, wParam, lParam):
         if nCode != HC_ACTION:
             return ctypes.windll.user32.CallNextHookEx(None, nCode, wParam, lParam)
+
+        # Si la session est entièrement active et déverrouillée (occupied), on laisse l'accès complet au clavier
+        if self.is_unlocked:
+            return ctypes.windll.user32.CallNextHookEx(None, nCode, wParam, lParam)
+
         kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
         vk = kb.vkCode
-        # Bloquage touches Windows et raccourcis si non déverrouillé explicitement
+
+        # Blocage de la touche Windows, d'Alt+Tab, Alt+Esc, Ctrl+Esc et du menu démarrer
         if vk in (VK_LWIN, VK_RWIN):
             return 1
         if kb.flags & LLKHF_ALTDOWN and vk in (VK_TAB, VK_ESCAPE):
@@ -203,7 +262,7 @@ class DEKClientAgent:
         wndclass.cbSize = ctypes.sizeof(WNDCLASSEXW)
         wndclass.lpfnWndProc = global_wndproc
         wndclass.hInstance = self.hinst
-        wndclass.hbrBackground = ctypes.windll.gdi32.GetStockObject(4)
+        wndclass.hbrBackground = ctypes.windll.gdi32.GetStockObject(4) # Pinceau noir
         wndclass.lpszClassName = self.WNDCLASS_NAME
         ctypes.windll.user32.RegisterClassExW(ctypes.byref(wndclass))
         
@@ -234,29 +293,36 @@ class DEKClientAgent:
         return ctypes.windll.user32.DefWindowProcW(hwnd, msg, wParam, lParam)
 
     def status_poll_thread(self):
-        """
-        --- CORRECTION MAJEURE : Interrogation GET synchrone du statut serveur ---
-        Permet de masquer ou d'afficher dynamiquement le Kiosk selon l'état de la session.
-        """
+        """Vérification en continu du statut de ce PC sur le serveur local."""
         while self.running:
             try:
-                req = urllib.request.Request(STATUS_API_URL, method="GET")
-                with urllib.request.urlopen(req, timeout=4) as response:
+                req = urllib.request.Request(self.status_api_url, method="GET")
+                with urllib.request.urlopen(req, timeout=3) as response:
                     data = json.loads(response.read().decode('utf-8'))
                     status = data.get('status', 'free')
                     
-                    if status in ('occupied', 'paused'):
-                        # Session active : on masque la fenêtre noire du Kiosk pour libérer le bureau
-                        if self.hwnd and not self.is_unlocked:
+                    if status == 'occupied':
+                        # Session active de jeu: déverrouiller clavier et masquer le Kiosk noir
+                        if self.hwnd and not self.is_kiosk_hidden:
+                            ctypes.windll.user32.ShowWindow(self.hwnd, SW_HIDE)
+                            self.show_taskbar()
+                            self.is_kiosk_hidden = True
+                        self.is_unlocked = True
+                    elif status == 'paused':
+                        # Session en pause: masquer le Kiosk noir (pour voir le navigateur de pause) mais bloquer le clavier
+                        if self.hwnd and not self.is_kiosk_hidden:
                             ctypes.windll.user32.ShowWindow(self.hwnd, SW_HIDE)
                             self.hide_taskbar()
-                            self.is_unlocked = True
+                            self.is_kiosk_hidden = True
+                        self.is_unlocked = False
                     else:
-                        # Session libre : on affiche le Kiosk de verrouillage
-                        if self.hwnd and self.is_unlocked:
+                        # Session libre ou verrouillée: afficher le Kiosk noir et bloquer le clavier et la barre des tâches
+                        if self.hwnd and self.is_kiosk_hidden:
                             ctypes.windll.user32.ShowWindow(self.hwnd, SW_SHOW)
                             ctypes.windll.user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
-                            self.is_unlocked = False
+                            self.hide_taskbar()
+                            self.is_kiosk_hidden = False
+                        self.is_unlocked = False
             except Exception:
                 pass
             ctypes.windll.kernel32.Sleep(POLL_INTERVAL_MS)
@@ -266,7 +332,7 @@ class DEKClientAgent:
             ctypes.windll.kernel32.Sleep(1000)
             try:
                 import webbrowser
-                webbrowser.open(CLIENT_URL)
+                webbrowser.open(self.client_url)
             except Exception:
                 pass
         threading.Thread(target=_open, daemon=True).start()
@@ -286,15 +352,26 @@ class DEKClientAgent:
     def start(self):
         global agent_instance
         agent_instance = self
+
+        # 1. Étape d'auto-détection intelligente du serveur local
+        self.server_ip = discover_server(self.pc_name)
+
+        # 2. Construction dynamique des URLs du client
+        self.client_url = f"http://{self.server_ip}:5000/client/{self.pc_name}"
+        self.status_api_url = f"http://{self.server_ip}:5000/api/client/status/{self.pc_name}"
+
+        # 3. Initialisation et Kiosk
         self.setup_registry()
         self.hide_taskbar()
         self.create_kiosk_window()
         self.install_hook()
         self.running = True
         
+        # Lancement de la surveillance synchrone
         self._status_thread = threading.Thread(target=self.status_poll_thread, daemon=True)
         self._status_thread.start()
         
+        # Ouverture du navigateur client
         self.open_client_browser()
         self.run_message_pump()
 

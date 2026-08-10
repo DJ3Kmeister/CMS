@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+    # CORRECTION ICI : Utilisation de ubuntu-22.04 au lieu de latest
     runs-on: ubuntu-22.04
 
     steps:
@@ -18,19 +19,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Verrouillage de pip sur une version compatible
-        run: |
-          python -m pip install --upgrade "pip==23.3.1" "setuptools<70" wheel
+      - name: Pin pip to a known-compatible version
+        run: python -m pip install --upgrade pip==23.1.2
 
       - name: Installation des dépendances système
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
 
-      - name: Installation de Buildozer et P4A
-        run: |
-          python -m pip install --upgrade "Cython<3.0" "buildozer>=1.4.6" virtualenv
-          python -m pip install --upgrade "python-for-android>=2024.1"
+      - name: Installation de Buildozer
+        run: python -m pip install --upgrade Cython buildozer virtualenv
 
       - name: Cache Buildozer
         uses: actions/cache@v3
@@ -41,6 +39,16 @@ jobs:
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
             ${{ runner.os }}-buildozer-
+
+      - name: Compilation de l'APK (Debug)
+        run: yes | buildozer -v android debug
+
+      - name: Sauvegarde de l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dekdrivsim-apk
+          path: bin/*.apk
+          retention-days: 7
 
       - name: Compilation de l'APK (Debug)
         run: yes | buildozer -v android debug

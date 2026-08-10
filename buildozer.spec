@@ -37,8 +37,9 @@ android.presplash_color = #04050a
 # 📦 DÉPENDANCES ET SYSTÈME
 # =============================================================================
 
-# CORRECTION : Retrait de sqlite3 (intégré à Python) et ajout de openssl, urllib3 pour HTTPS
-requirements = python3, kivy, pyjnius, flask, jinja2, werkzeug, itsdangerous, blinker, openssl, urllib3
+# CORRECTION : Suppression des dépendances problématiques (markupsafe, jinja2, werkzeug, itsdangerous, blinker)
+# Flask inclut déjà Jinja2 en interne. Nous incluons uniquement les dépendances strictement nécessaires.
+requirements = python3,kivy,pyjnius,flask,openssl,urllib3
 orientation = portrait
 fullscreen = 1
 

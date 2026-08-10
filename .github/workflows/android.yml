@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-    # CORRECTION ICI : Utilisation de ubuntu-22.04 au lieu de latest
     runs-on: ubuntu-22.04
 
     steps:
@@ -21,15 +20,17 @@ jobs:
 
       - name: Verrouillage de pip sur une version compatible
         run: |
-          python -m pip install --upgrade pip==23.3.1 setuptools wheel
+          python -m pip install --upgrade "pip==23.3.1" "setuptools<70" wheel
 
       - name: Installation des dépendances système
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential python3-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential
 
-      - name: Installation de Buildozer
-        run: python -m pip install --upgrade Cython buildozer virtualenv
+      - name: Installation de Buildozer et P4A
+        run: |
+          python -m pip install --upgrade "Cython<3.0" "buildozer>=1.4.6" virtualenv
+          python -m pip install --upgrade "python-for-android>=2024.1"
 
       - name: Cache Buildozer
         uses: actions/cache@v3

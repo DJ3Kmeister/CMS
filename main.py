@@ -140,10 +140,152 @@ class DEKDRIVSIMApp(App):
         @run_on_ui_thread
         def create_webview():
             try:
+# -*- coding: utf-8 -*-
+"""
+DEK-DRIVSIM CyberCafe - Android APK Master Entry Point (main.py)
+"""
+
+import threading
+import time
+import os
+import sys
+import urllib.request
+import ssl  # Ajout de l'import explicite au niveau global
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'cybercafe_manager'))
+
+from kivy.app import App
+from kivy.utils import platform
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.clock import Clock
+
+FLASK_HOST = '127.0.0.1'
+FLASK_PORT = 5000
+FLASK_URL = f"https://{FLASK_HOST}:{FLASK_PORT}"
+MAX_RETRIES = 40
+RETRY_DELAY = 0.5
+
+MANAGER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cybercafe_manager')
+CERT_PATH = os.path.join(MANAGER_DIR, 'certs', 'server.crt')
+KEY_PATH = os.path.join(MANAGER_DIR, 'certs', 'server.key')
+
+def start_flask_server():
+    try:
+        if not os.path.exists(CERT_PATH) or not os.path.exists(KEY_PATH):
+            raise FileNotFoundError(f"Fichiers SSL absents: \nCRT: {CERT_PATH}\nKEY: {KEY_PATH}")
+        
+        import app as flask_backend
+        print(f"[FLASK] Démarrage HTTPS sur {FLASK_HOST}:{FLASK_PORT}")
+        flask_backend.app.run(
+            host=FLASK_HOST,
+            port=FLASK_PORT,
+            debug=False,
+            threaded=True,
+            use_reloader=False,
+            ssl_context=(CERT_PATH, KEY_PATH)
+        )
+    except Exception as e:
+        print(f"[FLASK ERROR] {e}")
+        with open("flask_error_crash.txt", "w") as f:
+            f.write(str(e))
+
+def wait_for_server(url, max_retries=MAX_RETRIES, delay=RETRY_DELAY):
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(url, method='HEAD')
+            urllib.request.urlopen(req, timeout=1, context=ctx)
+            print(f"[FLASK] Serveur HTTPS prêt ({attempt + 1} tentatives)")
+            return True
+        except Exception:
+            time.sleep(delay)
+            
+    print("[FLASK ERROR] Serveur HTTPS injoignable")
+    return False
+
+def load_url_on_ui_thread(webview, url):
+    from android.runnable import run_on_ui_thread
+    @run_on_ui_thread
+    def _load():
+        try:
+            webview.loadUrl(url)
+            print(f"[WEBVIEW] Chargé : {url}")
+        except Exception as e:
+            print(f"[WEBVIEW LOAD ERROR] {e}")
+    _load()
+
+class DEKDRIVSIMApp(App):
+    def build(self):
+        self.layout = BoxLayout(orientation='vertical', padding=20)
+        self.lbl_status = Label(
+            text="INITIALISATION DE DEK-DRIVSIM...\n\nCalibrage des simulateurs en cours...",
+            font_size='14sp',
+            halign='center'
+        )
+        self.layout.add_widget(self.lbl_status)
+
+        self.server_thread = threading.Thread(target=start_flask_server, daemon=True)
+        self.server_thread.start()
+
+        Clock.schedule_once(self.init_app_interface, 1.2)
+        return self.layout
+
+    def update_error_ui(self, message):
+        self.lbl_status.text = f"⚠️ ERREUR CRITIQUE DE CHARGEMENT :\n\n{message}"
+        self.lbl_status.color = [1, 0.2, 0.2, 1]
+
+    def init_app_interface(self, dt):
+        if platform == 'android':
+            self._init_android()
+        else:
+            self._init_desktop()
+
+    def _init_desktop(self):
+        self.lbl_status.text = "DEK-DRIVSIM HTTPS actif\nOuverture de votre navigateur..."
+        def open_browser():
+            if wait_for_server(FLASK_URL):
+                import webbrowser
+                webbrowser.open(FLASK_URL)
+            else:
+                self.update_error_ui("Le serveur HTTPS local est injoignable.")
+        threading.Thread(target=open_browser, daemon=True).start()
+
+    def _init_android(self):
+        from android.permissions import request_permissions, Permission
+        from jnius import autoclass, PythonJavaClass, java_method
+        from android.runnable import run_on_ui_thread
+
+        try:
+            request_permissions([
+                Permission.INTERNET,
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.ACCESS_NETWORK_STATE,
+            ])
+        except Exception as e:
+            print(f"[PERMISSIONS ERROR] {e}")
+
+        class CustomWebViewClient(PythonJavaClass):
+            __javaclass__ = 'android/webkit/WebViewClient'
+            
+            @java_method('(Landroid/webkit/WebView;Landroid/webkit/SslErrorHandler;Landroid/net/http/SslError;)V')
+            def onReceivedSslError(self, view, handler, error):
+                handler.proceed()
+
+        @run_on_ui_thread
+        def create_webview():
+            try:
+                if not os.path.exists(CERT_PATH) or not os.path.exists(KEY_PATH):
+                    self.update_error_ui(f"Certificats SSL introuvables sur le téléphone !\nCRT: {CERT_PATH}\nKEY: {KEY_PATH}")
+                    return
+
                 PythonActivity = autoclass('org.kivy.android.PythonActivity')
                 Activity = PythonActivity.mActivity
                 WebView = autoclass('android.webkit.WebView')
-                WebViewClient = autoclass('android.webkit.WebViewClient')
                 
                 webview = WebView(Activity)
                 settings = webview.getSettings()
@@ -157,12 +299,39 @@ class DEKDRIVSIMApp(App):
                 settings.setSupportZoom(True)
                 settings.setBuiltInZoomControls(True)
                 settings.setDisplayZoomControls(False)
+                settings.setMixedContentMode(0)
                 
-                settings.setMixedContentMode(0)  # MIXED_CONTENT_ALWAYS_ALLOW
-                
-                webview.setWebViewClient(WebViewClient())
+                webview.setWebViewClient(CustomWebViewClient())
                 Activity.setContentView(webview)
-                print("[WEBVIEW] Instance native HTTP créée")
+                print("[WEBVIEW] Instance native HTTPS créée")
+
+                def wait_and_load():
+                    if wait_for_server(FLASK_URL):
+                        load_url_on_ui_thread(webview, FLASK_URL)
+                    else:
+                        flask_err = "Le serveur n'a pas répondu."
+                        if os.path.exists("flask_error_crash.txt"):
+                            with open("flask_error_crash.txt", "r") as f:
+                                flask_err = f.read()
+                        
+                        html = f"""
+                        <html><body style='background:#04050a;color:#ef4444;font-family:sans-serif;text-align:center;padding:15px;padding-top:30%'>
+                        <h1>ERREUR SERVEUR DEK-DRIVSIM</h1>
+                        <p style='color:#94a3b8;font-size:14px;line-height:1.6'>{flask_err}</p>
+                        </body></html>
+                        """
+                        load_url_on_ui_thread(webview, f"data:text/html,{html}")
+                
+                threading.Thread(target=wait_and_load, daemon=True).start()
+            except Exception as e:
+                print(f"[WEBVIEW INIT ERROR] {e}")
+                self.update_error_ui(str(e))
+
+        create_webview()
+
+if __name__ == '__main__':
+    DEKDRIVSIMApp().run()
+t("[WEBVIEW] Instance native HTTP créée")
 
                 # 3. Attente asynchrone de Flask et chargement de l'URL
                 def wait_and_load():

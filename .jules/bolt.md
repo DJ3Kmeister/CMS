@@ -1,0 +1,5 @@
+# Bolt's Journal
+
+## 2026-02-11 - SQLite WAL Mode & Query Indexing for High-Concurrency CyberCafe Servers
+**Learning:** In a multi-threaded Flask application (like this Kivy-wrapped central server) where multiple client terminals perform concurrent pings and lookups, default SQLite journal configurations (journal_mode = DELETE) can cause blocking disk I/O and "database is locked" errors. Enabling SQLite WAL (Write-Ahead Logging) mode and normal synchronous writes greatly improves parallel read/write concurrency and write speed. Additionally, missing indexes on date-based (`created_at` or `start_time`) query fields on `transactions` and `sessions` tables lead to expensive O(N) table scans during financial summaries and reports, which slows down dashboard rendering as the database grows.
+**Action:** Always enable `PRAGMA journal_mode = WAL;` and create composite/single-column indexes on highly-queried fields like `created_at` or `terminal_id`/`start_time` to keep dashboards and statistics operating at O(log N) complexity.

@@ -1056,39 +1056,31 @@ def admin_reports_print():
     for tx in transactions:
         total_revenue += tx['amount']
         if tx['type'] == 'ticket_sale':
-# -*- coding: utf-8 -*-
-"""
-DEK-DRIVSIM CyberCafe - Serveur Central Unifié de Niveau Entreprise
-"""
+            ticket_count += 1
+            ticket_amount += tx['amount']
+        elif tx['type'] == 'player_recharge':
+            player_count += 1
+            player_amount += tx['amount']
+        elif tx['type'] == 'session_payment':
+            session_count += 1
+            session_amount += tx['amount']
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-import sqlite3
-import random
-import string
-from datetime import datetime, timedelta
-import os
-import csv
-import io
+    cursor.execute("SELECT COUNT(*) FROM connection_logs WHERE login_time >= ?", (start_date_str,))
+    total_sessions = cursor.fetchone()[0]
 
-app = Flask(__name__)
-app.secret_key = 'senet_cybercafe_secret_key'
+    cursor.execute("""
+        SELECT terminal_name, COUNT(*) as count, SUM(duration_mins) as total_duration
+        FROM connection_logs
+        WHERE login_time >= ?
+        GROUP BY terminal_name
+    """, (start_date_str,))
+    terminals_usage = [dict(row) for row in cursor.fetchall()]
+    conn.close()
 
-# --- COUCHE DE BASE DE DONNÉES (DATABASE LAYER CONSOLIDATED) ---
-
-# CORRECTION : Le chemin exact créé par Android est org.dekdrivsim.dekdrivsim
-if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA busy_timeout = 30000;")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# [ ... TOUT LE RESTE DE TON CODE RESTE STRICTEMENT IDENTIQUE ... ]
-   'end_date': end_date_str,
+    report = {
+        'label': label,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
         'total_sessions': total_sessions,
         'total_revenue': total_revenue,
         'breakdown': {

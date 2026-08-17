@@ -19,7 +19,7 @@ app.secret_key = 'senet_cybercafe_secret_key'
 # --- COUCHE DE BASE DE DONNÉES ---
 
 if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim/files'), 'cybercafe.db')
+    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
 else:
     DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
 
@@ -33,6 +33,10 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
+    # Optimization (Bolt ⚡): Enable Write-Ahead Logging (WAL) & normal synchronous mode
+    # WAL allows concurrent reads during writes and reduces disk I/O latency on Android storage.
+    cursor.execute("PRAGMA journal_mode = WAL;")
+    cursor.execute("PRAGMA synchronous = NORMAL;")
     
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS terminals (
@@ -169,7 +173,15 @@ def init_db():
         launch_path TEXT
     )
     ''')
-    
+
+    # Optimization (Bolt ⚡): Add indexes on frequently queried/joined fields
+    # Speed up financial aggregation (transactions.created_at)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);")
+    # Speed up session state lookups and terminal joins
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_terminal_start ON sessions(terminal_id, start_time);")
+    # Speed up connection log lookup during logout
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_connection_logs_terminal_logout ON connection_logs(terminal_name, logout_time);")
+
     conn.commit()
     
     # Paramètres par défaut (sans écraser les modifications de l'admin)
@@ -1056,39 +1068,22 @@ def admin_reports_print():
     for tx in transactions:
         total_revenue += tx['amount']
         if tx['type'] == 'ticket_sale':
-# -*- coding: utf-8 -*-
-"""
-DEK-DRIVSIM CyberCafe - Serveur Central Unifié de Niveau Entreprise
-"""
+            ticket_count += 1
+            ticket_amount += tx['amount']
+        elif tx['type'] == 'player_recharge':
+            player_count += 1
+            player_amount += tx['amount']
+        else:
+            session_count += 1
+            session_amount += tx['amount']
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-import sqlite3
-import random
-import string
-from datetime import datetime, timedelta
-import os
-import csv
-import io
+    cursor.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (start_date_str,))
+    total_sessions = cursor.fetchone()[0]
 
-app = Flask(__name__)
-app.secret_key = 'senet_cybercafe_secret_key'
-
-# --- COUCHE DE BASE DE DONNÉES (DATABASE LAYER CONSOLIDATED) ---
-
-# CORRECTION : Le chemin exact créé par Android est org.dekdrivsim.dekdrivsim
-if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA busy_timeout = 30000;")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# [ ... TOUT LE RESTE DE TON CODE RESTE STRICTEMENT IDENTIQUE ... ]
-   'end_date': end_date_str,
+    report = {
+        'period_label': label,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
         'total_sessions': total_sessions,
         'total_revenue': total_revenue,
         'breakdown': {
@@ -1096,16 +1091,14 @@ def get_db():
             'player_recharge': {'count': player_count, 'amount': player_amount},
             'session_payment': {'count': session_count, 'amount': session_amount}
         },
-        'terminals_usage': terminals_usage,
-        'recent_transactions': transactions
+        'transactions': transactions
     }
 
+    conn.close()
     return render_template('reports_print.html', report=report, settings=get_settings())
 
 if __name__ == '__main__':
-    # --- CORRECTION CRITIQUE : Initialisation de la base de données au lancement ---
     init_db()
-    # -----------------------------------------------------------------------------
     print("\n" + "="*60)
     print("      DEK-DRIVSIM CYBERCAFE - SERVEUR UNIFIÉ MOBILE  ")
     print("="*60)

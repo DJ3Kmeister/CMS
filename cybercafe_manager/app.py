@@ -170,6 +170,11 @@ def init_db():
     )
     ''')
     
+    # Bolt Performance Optimization: Create indexes on frequently queried columns
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_terminal_status ON sessions(terminal_id, status);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_connection_logs_terminal_logout ON connection_logs(terminal_name, logout_time);")
+
     conn.commit()
     
     # Paramètres par défaut (sans écraser les modifications de l'admin)
@@ -689,16 +694,23 @@ def get_financial_summary():
     conn = get_db()
     cursor = conn.cursor()
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    cursor.execute("SELECT SUM(amount) FROM transactions WHERE created_at >= ?", (today_start,))
-    today_revenue = cursor.fetchone()[0] or 0
-    cursor.execute("SELECT COUNT(*) FROM transactions WHERE type = 'ticket_sale' AND created_at >= ?", (today_start,))
-    tickets_sold_today = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM players WHERE status = 'active'")
-    active_players_count = cursor.fetchone()[0]
-    cursor.execute("SELECT SUM(amount) FROM transactions")
-    all_time_revenue = cursor.fetchone()[0] or 0
+    # Bolt Performance Optimization: Combine 4 separate SQL queries into a single query
+    # to eliminate database round-trips and lower overhead during frequent status polling.
+    cursor.execute('''
+        SELECT
+            (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at >= ?) AS today_revenue,
+            (SELECT COUNT(*) FROM transactions WHERE type = 'ticket_sale' AND created_at >= ?) AS tickets_sold_today,
+            (SELECT COUNT(*) FROM players WHERE status = 'active') AS active_players_count,
+            (SELECT COALESCE(SUM(amount), 0) FROM transactions) AS all_time_revenue
+    ''', (today_start, today_start))
+    row = cursor.fetchone()
+    today_revenue = row['today_revenue']
+    tickets_sold_today = row['tickets_sold_today']
+    active_players_count = row['active_players_count']
+    all_time_revenue = row['all_time_revenue']
+
     cursor.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 10")
-    recent_transactions = [dict(row) for row in cursor.fetchall()]
+    recent_transactions = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return {
         'today_revenue': today_revenue,
@@ -1056,39 +1068,33 @@ def admin_reports_print():
     for tx in transactions:
         total_revenue += tx['amount']
         if tx['type'] == 'ticket_sale':
-# -*- coding: utf-8 -*-
-"""
-DEK-DRIVSIM CyberCafe - Serveur Central Unifié de Niveau Entreprise
-"""
+            ticket_count += 1
+            ticket_amount += tx['amount']
+        elif tx['type'] == 'player_recharge':
+            player_count += 1
+            player_amount += tx['amount']
+        elif tx['type'] == 'session_payment':
+            session_count += 1
+            session_amount += tx['amount']
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-import sqlite3
-import random
-import string
-from datetime import datetime, timedelta
-import os
-import csv
-import io
+    cursor.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (start_date_str,))
+    total_sessions = cursor.fetchone()[0] or 0
 
-app = Flask(__name__)
-app.secret_key = 'senet_cybercafe_secret_key'
+    cursor.execute('''
+        SELECT t.name, COUNT(s.id) as count, COALESCE(SUM(s.time_spent_seconds), 0) as total_seconds
+        FROM terminals t
+        LEFT JOIN sessions s ON t.id = s.terminal_id AND s.start_time >= ?
+        GROUP BY t.id
+        ORDER BY count DESC
+    ''', (start_date_str,))
+    popular_terminals = [dict(row) for row in cursor.fetchall()]
 
-# --- COUCHE DE BASE DE DONNÉES (DATABASE LAYER CONSOLIDATED) ---
+    conn.close()
 
-# CORRECTION : Le chemin exact créé par Android est org.dekdrivsim.dekdrivsim
-if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA busy_timeout = 30000;")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# [ ... TOUT LE RESTE DE TON CODE RESTE STRICTEMENT IDENTIQUE ... ]
-   'end_date': end_date_str,
+    report = {
+        'period_label': label,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
         'total_sessions': total_sessions,
         'total_revenue': total_revenue,
         'breakdown': {
@@ -1096,8 +1102,8 @@ def get_db():
             'player_recharge': {'count': player_count, 'amount': player_amount},
             'session_payment': {'count': session_count, 'amount': session_amount}
         },
-        'terminals_usage': terminals_usage,
-        'recent_transactions': transactions
+        'popular_terminals': popular_terminals,
+        'transactions': transactions
     }
 
     return render_template('reports_print.html', report=report, settings=get_settings())

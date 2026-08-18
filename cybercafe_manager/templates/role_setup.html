@@ -53,10 +53,10 @@
         <form onsubmit="submitRoleActivation(event)" class="w-full space-y-4 font-mono text-xs">
             <div class="relative">
                 <input type="password" id="role-password" placeholder="Saisir le code d'accès sécurisé" required autocomplete="off"
-                       class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-center text-sm text-white focus:outline-none focus:border-fuchsia-500 font-bold placeholder-slate-700 transition-all">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600">
-                    <i class="fa-solid fa-key"></i>
-                </span>
+                       class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3.5 text-center text-sm text-white focus:outline-none focus:border-fuchsia-500 font-bold placeholder-slate-700 transition-all">
+                <button type="button" onclick="togglePasswordVisibility('role-password', this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded p-1 transition-colors">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
             </div>
 
             <button type="submit" id="btn-submit" class="w-full py-3.5 bg-gradient-to-r from-fuchsia-600 to-fuchsia-500 hover:from-fuchsia-500 hover:to-fuchsia-400 text-white font-bold rounded-xl tracking-widest uppercase shadow-lg shadow-fuchsia-600/20 hover:shadow-fuchsia-500/30 transition-all duration-300 flex items-center justify-center gap-2 text-xs border border-fuchsia-500/25">
@@ -70,6 +70,22 @@
     </div>
 
     <script>
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+                btn.setAttribute('aria-label', 'Masquer le mot de passe');
+                btn.setAttribute('title', 'Masquer le mot de passe');
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+                btn.setAttribute('aria-label', 'Afficher le mot de passe');
+                btn.setAttribute('title', 'Afficher le mot de passe');
+            }
+        }
+
         async function submitRoleActivation(e) {
             e.preventDefault();
             const password = document.getElementById('role-password').value;

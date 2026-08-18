@@ -174,10 +174,13 @@
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mot de Passe :</label>
                         <div class="relative">
                             <input type="password" id="player-password" placeholder="••••••••" required autocomplete="off"
-                                   class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
+                                   class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
                             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
                                 <i class="fa-solid fa-key"></i>
                             </span>
+                            <button type="button" onclick="togglePasswordVisibility('player-password', this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded p-1 transition-colors">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
                         </div>
                     </div>
                     
@@ -361,8 +364,13 @@
             <p class="text-xs text-slate-400 mb-6 leading-relaxed">Saisissez le mot de passe administrateur pour gérer le catalogue de jeux.</p>
             
             <form onsubmit="submitAdminLogin(event)" class="space-y-4">
-                <input type="password" id="admin-catalog-password" placeholder="Mot de passe admin (Ex: admin123)" required
-                       class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-center text-xs text-white focus:outline-none focus:border-fuchsia-500 font-bold font-mono">
+                <div class="relative">
+                    <input type="password" id="admin-catalog-password" placeholder="Mot de passe admin (Ex: admin123)" required
+                           class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-10 py-3 text-center text-xs text-white focus:outline-none focus:border-fuchsia-500 font-bold font-mono">
+                    <button type="button" onclick="togglePasswordVisibility('admin-catalog-password', this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded p-1 transition-colors">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
                 <button type="submit" class="w-full py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-bold rounded-xl uppercase tracking-wider transition-all font-mono shadow shadow-fuchsia-500/20">
                     Se Connecter
                 </button>
@@ -933,6 +941,22 @@
                 } else {
                     card.classList.add('hidden');
                 }
+            }
+        }
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+                btn.setAttribute('aria-label', 'Masquer le mot de passe');
+                btn.setAttribute('title', 'Masquer le mot de passe');
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+                btn.setAttribute('aria-label', 'Afficher le mot de passe');
+                btn.setAttribute('title', 'Afficher le mot de passe');
             }
         }
 

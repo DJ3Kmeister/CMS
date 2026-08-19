@@ -51,15 +51,23 @@
 
         <!-- Role Activation Form -->
         <form onsubmit="submitRoleActivation(event)" class="w-full space-y-4 font-mono text-xs">
-            <div class="relative">
-                <input type="password" id="role-password" placeholder="Saisir le code d'accès sécurisé" required autocomplete="off"
-                       class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-center text-sm text-white focus:outline-none focus:border-fuchsia-500 font-bold placeholder-slate-700 transition-all">
-                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600">
-                    <i class="fa-solid fa-key"></i>
-                </span>
+            <div class="text-left">
+                <label for="role-password" class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
+                    Code d'accès <span class="text-fuchsia-400">*</span>
+                </label>
+                <div class="relative">
+                    <input type="password" id="role-password" name="password" placeholder="Saisir le code d'accès sécurisé" required autocomplete="off"
+                           aria-label="Code d'accès sécurisé"
+                           class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-11 py-3.5 text-sm text-white focus:outline-none focus:border-fuchsia-500 focus-visible:ring-2 focus-visible:ring-fuchsia-500 font-bold placeholder-slate-700 transition-all">
+                    <button type="button" onclick="togglePasswordVisibility()" id="toggle-pwd-btn"
+                            aria-label="Afficher le code d'accès" aria-pressed="false"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-fuchsia-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded-lg p-1 transition-colors">
+                        <i class="fa-solid fa-eye" id="pwd-icon"></i>
+                    </button>
+                </div>
             </div>
 
-            <button type="submit" id="btn-submit" class="w-full py-3.5 bg-gradient-to-r from-fuchsia-600 to-fuchsia-500 hover:from-fuchsia-500 hover:to-fuchsia-400 text-white font-bold rounded-xl tracking-widest uppercase shadow-lg shadow-fuchsia-600/20 hover:shadow-fuchsia-500/30 transition-all duration-300 flex items-center justify-center gap-2 text-xs border border-fuchsia-500/25">
+            <button type="submit" id="btn-submit" class="w-full py-3.5 bg-gradient-to-r from-fuchsia-600 to-fuchsia-500 hover:from-fuchsia-500 hover:to-fuchsia-400 text-white font-bold rounded-xl tracking-widest uppercase shadow-lg shadow-fuchsia-600/20 hover:shadow-fuchsia-500/30 transition-all duration-300 flex items-center justify-center gap-2 text-xs border border-fuchsia-500/25 focus-visible:ring-2 focus-visible:ring-fuchsia-400">
                 Activer l'appareil <i class="fa-solid fa-bolt"></i>
             </button>
         </form>
@@ -70,6 +78,24 @@
     </div>
 
     <script>
+        function togglePasswordVisibility() {
+            const input = document.getElementById('role-password');
+            const icon = document.getElementById('pwd-icon');
+            const btn = document.getElementById('toggle-pwd-btn');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+                btn.setAttribute('aria-label', 'Masquer le code d\'accès');
+                btn.setAttribute('aria-pressed', 'true');
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+                btn.setAttribute('aria-label', 'Afficher le code d\'accès');
+                btn.setAttribute('aria-pressed', 'false');
+            }
+        }
+
         async function submitRoleActivation(e) {
             e.preventDefault();
             const password = document.getElementById('role-password').value;

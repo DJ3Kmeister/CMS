@@ -69,7 +69,7 @@
     <div class="cyber-scanline"></div>
     
     <!-- SECRET BYPASS TEST DOT (Micro-symbole de test discret en haut à droite) -->
-    <div onclick="triggerSecretBypass()" class="absolute top-2 right-2 w-1.5 h-1.5 bg-slate-800 hover:bg-fuchsia-500 rounded-full cursor-pointer select-none opacity-25 hover:opacity-100 transition-all z-50" title="Bypass Test Admin"></div>
+    <button type="button" onclick="triggerSecretBypass()" class="absolute top-2 right-2 w-2 h-2 bg-slate-800 hover:bg-fuchsia-500 rounded-full cursor-pointer select-none opacity-25 hover:opacity-100 transition-all z-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500" title="Bypass Test Admin" aria-label="Bypass Test Admin"></button>
 
     <!-- WALLPAPER BACKGROUND (Simulated Windows Desktop when Unlocked) -->
     <div id="desktop-bg" class="hidden absolute inset-0 bg-cover bg-center z-0 filter brightness-95" 
@@ -120,12 +120,12 @@
         <!-- Right Side: Unlock Methods Card -->
         <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-lg flex flex-col neon-border-purple">
             <!-- Tabs -->
-            <div class="flex border-b border-slate-800 bg-slate-950/50 font-mono">
-                <button onclick="setTab('ticket')" id="tab-btn-ticket" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all">
-                    <i class="fa-solid fa-ticket mr-1.5"></i> Code Ticket
+            <div class="flex border-b border-slate-800 bg-slate-950/50 font-mono" role="tablist" aria-label="Méthode de déverrouillage">
+                <button onclick="setTab('ticket')" id="tab-btn-ticket" role="tab" aria-selected="true" aria-controls="form-ticket" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500">
+                    <i class="fa-solid fa-ticket mr-1.5" aria-hidden="true"></i> Code Ticket
                 </button>
-                <button onclick="setTab('player')" id="tab-btn-player" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
-                    <i class="fa-solid fa-user mr-1.5"></i> Compte Joueur
+                <button onclick="setTab('player')" id="tab-btn-player" role="tab" aria-selected="false" aria-controls="form-player" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500">
+                    <i class="fa-solid fa-user mr-1.5" aria-hidden="true"></i> Compte Joueur
                 </button>
             </div>
 
@@ -133,19 +133,19 @@
             <div class="p-8">
                 <!-- Message Display -->
                 <div id="auth-alert" class="hidden mb-6 p-4 rounded-xl text-xs font-semibold flex items-center gap-2">
-                    <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                    <i class="fa-solid fa-circle-exclamation text-lg" aria-hidden="true"></i>
                     <span id="auth-alert-msg"></span>
                 </div>
 
                 <!-- TICKET FORM -->
                 <form id="form-ticket" onsubmit="unlockWithTicket(event)" class="space-y-6">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Saisir le Code PIN :</label>
+                        <label for="ticket-code" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Saisir le Code PIN :</label>
                         <div class="relative">
                             <input type="text" id="ticket-code" placeholder="X7B9W2" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-center text-2xl font-mono font-black tracking-widest text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 placeholder-slate-700 uppercase transition-all">
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600">
-                                <i class="fa-solid fa-lock"></i>
+                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
                             </span>
                         </div>
                         <p class="text-[11px] text-slate-500 mt-2 text-center leading-relaxed font-sans">
@@ -154,29 +154,29 @@
                     </div>
                     
                     <button type="submit" id="btn-submit-ticket" class="w-full py-4 bg-gradient-to-r from-fuchsia-600 to-fuchsia-500 hover:from-fuchsia-500 hover:to-fuchsia-400 text-white font-bold rounded-xl tracking-widest uppercase shadow-lg shadow-fuchsia-600/20 hover:shadow-fuchsia-500/30 transition-all duration-300 flex items-center justify-center gap-2 text-xs font-mono border border-fuchsia-500/25">
-                        Déverrouiller le simulateur <i class="fa-solid fa-unlock"></i>
+                        Déverrouiller le simulateur <i class="fa-solid fa-unlock" aria-hidden="true"></i>
                     </button>
                 </form>
 
                 <!-- PLAYER FORM -->
                 <form id="form-player" onsubmit="unlockWithPlayer(event)" class="hidden space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Identifiant :</label>
+                        <label for="player-username" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Identifiant :</label>
                         <div class="relative">
                             <input type="text" id="player-username" placeholder="Pseudo Joueur" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
                             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                                <i class="fa-solid fa-user"></i>
+                                <i class="fa-solid fa-user" aria-hidden="true"></i>
                             </span>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mot de Passe :</label>
+                        <label for="player-password" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mot de Passe :</label>
                         <div class="relative">
                             <input type="password" id="player-password" placeholder="••••••••" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
                             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
-                                <i class="fa-solid fa-key"></i>
+                                <i class="fa-solid fa-key" aria-hidden="true"></i>
                             </span>
                         </div>
                     </div>
@@ -493,13 +493,17 @@
             alertBox.classList.add('hidden');
 
             if (tab === 'ticket') {
-                tabTicket.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all";
-                tabPlayer.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all";
+                tabTicket.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500";
+                tabPlayer.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500";
+                tabTicket.setAttribute('aria-selected', 'true');
+                tabPlayer.setAttribute('aria-selected', 'false');
                 formTicket.classList.remove('hidden');
                 formPlayer.classList.add('hidden');
             } else {
-                tabTicket.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all";
-                tabPlayer.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all";
+                tabTicket.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500";
+                tabPlayer.className = "flex-1 py-4 text-center font-bold text-sm tracking-wider uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500";
+                tabTicket.setAttribute('aria-selected', 'false');
+                tabPlayer.setAttribute('aria-selected', 'true');
                 formTicket.classList.add('hidden');
                 formPlayer.classList.remove('hidden');
             }

@@ -1,0 +1,3 @@
+## 2026-08-10 - SQLite Indexing on High-Frequency Polling Queries
+**Learning:** In this Flask + SQLite architecture, dashboard endpoints (`/api/dashboard/stats`, `/api/terminals`) and report generation repeatedly execute queries on `transactions(created_at)`, `sessions(terminal_id)`, and `connection_logs(terminal_name, logout_time)`. Without explicit indexes, these full table scans scale linearly with historical session/transaction counts, degrading response times for periodic client polling.
+**Action:** Always ensure `created_at`, foreign key references like `terminal_id`, and status/timestamp composite columns used in active lookup queries are indexed during `init_db()`.

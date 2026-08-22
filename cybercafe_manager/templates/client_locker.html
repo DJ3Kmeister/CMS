@@ -69,7 +69,7 @@
     <div class="cyber-scanline"></div>
     
     <!-- SECRET BYPASS TEST DOT (Micro-symbole de test discret en haut à droite) -->
-    <div onclick="triggerSecretBypass()" class="absolute top-2 right-2 w-1.5 h-1.5 bg-slate-800 hover:bg-fuchsia-500 rounded-full cursor-pointer select-none opacity-25 hover:opacity-100 transition-all z-50" title="Bypass Test Admin"></div>
+    <div onclick="triggerSecretBypass()" class="absolute top-2 right-2 w-1.5 h-1.5 bg-slate-800 hover:bg-fuchsia-500 rounded-full cursor-pointer select-none opacity-25 hover:opacity-100 transition-all z-50" title="Bypass Test Admin" role="button" aria-label="Bypass Test Admin"></div>
 
     <!-- WALLPAPER BACKGROUND (Simulated Windows Desktop when Unlocked) -->
     <div id="desktop-bg" class="hidden absolute inset-0 bg-cover bg-center z-0 filter brightness-95" 
@@ -121,10 +121,10 @@
         <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-lg flex flex-col neon-border-purple">
             <!-- Tabs -->
             <div class="flex border-b border-slate-800 bg-slate-950/50 font-mono">
-                <button onclick="setTab('ticket')" id="tab-btn-ticket" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all">
+                <button type="button" onclick="setTab('ticket')" id="tab-btn-ticket" role="tab" aria-selected="true" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-fuchsia-500 text-fuchsia-500 transition-all focus-visible:ring-2 focus-visible:ring-fuchsia-500">
                     <i class="fa-solid fa-ticket mr-1.5"></i> Code Ticket
                 </button>
-                <button onclick="setTab('player')" id="tab-btn-player" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                <button type="button" onclick="setTab('player')" id="tab-btn-player" role="tab" aria-selected="false" class="flex-1 py-4 text-center font-bold text-xs tracking-widest uppercase border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all focus-visible:ring-2 focus-visible:ring-fuchsia-500">
                     <i class="fa-solid fa-user mr-1.5"></i> Compte Joueur
                 </button>
             </div>
@@ -140,7 +140,7 @@
                 <!-- TICKET FORM -->
                 <form id="form-ticket" onsubmit="unlockWithTicket(event)" class="space-y-6">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Saisir le Code PIN :</label>
+                        <label for="ticket-code" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Saisir le Code PIN :</label>
                         <div class="relative">
                             <input type="text" id="ticket-code" placeholder="X7B9W2" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-4 text-center text-2xl font-mono font-black tracking-widest text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 placeholder-slate-700 uppercase transition-all">
@@ -161,7 +161,7 @@
                 <!-- PLAYER FORM -->
                 <form id="form-player" onsubmit="unlockWithPlayer(event)" class="hidden space-y-4">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Identifiant :</label>
+                        <label for="player-username" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Identifiant :</label>
                         <div class="relative">
                             <input type="text" id="player-username" placeholder="Pseudo Joueur" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
@@ -171,7 +171,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mot de Passe :</label>
+                        <label for="player-password" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mot de Passe :</label>
                         <div class="relative">
                             <input type="password" id="player-password" placeholder="••••••••" required autocomplete="off"
                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all">
@@ -190,7 +190,7 @@
     </div>
 
     <!-- ADMIN OVERRIDE CONFIGURATION BUTTON -->
-    <button onclick="openAdminCatalogModal()" class="z-20 absolute bottom-6 left-6 p-2.5 bg-slate-950 border border-slate-800 rounded-full hover:bg-slate-900 hover:text-cyan-400 transition-all shadow-lg text-slate-400 flex items-center gap-1.5" title="Configuration Administrateur">
+    <button type="button" onclick="openAdminCatalogModal()" aria-label="Configuration Administrateur" class="z-20 absolute bottom-6 left-6 p-2.5 bg-slate-950 border border-slate-800 rounded-full hover:bg-slate-900 hover:text-cyan-400 transition-all shadow-lg text-slate-400 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-fuchsia-500" title="Configuration Administrateur">
         <i class="fa-solid fa-cog animate-spin" style="animation-duration: 8s;"></i> <span class="text-[10px] font-bold uppercase tracking-wider">Config Admin</span>
     </button>
 
@@ -352,7 +352,7 @@
         
         <!-- STEP 1: Admin Password Validation -->
         <div id="admin-login-step" class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative neon-border-purple">
-            <button onclick="closeAdminCatalogModal()" class="absolute right-4 top-4 text-slate-400 hover:text-slate-200">
+            <button type="button" onclick="closeAdminCatalogModal()" aria-label="Fermer la fenêtre" class="absolute right-4 top-4 text-slate-400 hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded-lg p-1">
                 <i class="fa-solid fa-times"></i>
             </button>
             <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2 font-mono uppercase">
@@ -371,7 +371,7 @@
 
         <!-- STEP 2: Catalog Management Panel -->
         <div id="admin-catalog-panel" class="hidden bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative flex flex-col md:flex-row gap-6 max-h-[85vh] overflow-y-auto neon-border-purple">
-            <button onclick="closeAdminCatalogModal()" class="absolute right-4 top-4 text-slate-400 hover:text-slate-200 z-10">
+            <button type="button" onclick="closeAdminCatalogModal()" aria-label="Fermer la fenêtre" class="absolute right-4 top-4 text-slate-400 hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-fuchsia-500 rounded-lg p-1 z-10">
                 <i class="fa-solid fa-times text-lg"></i>
             </button>
             
@@ -386,12 +386,12 @@
 
                 <form onsubmit="submitAddGame(event)" class="space-y-3 text-xs">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nom du Jeu</label>
+                        <label for="add-game-name" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nom du Jeu</label>
                         <input type="text" id="add-game-name" placeholder="Ex: Forza Horizon 5" required
                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-fuchsia-500">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Catégorie</label>
+                        <label for="add-game-category" class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Catégorie</label>
                         <select id="add-game-category" required
                                 class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-fuchsia-500 text-xs">
                             <option value="Simulation Auto">Simulation Auto</option>
@@ -403,12 +403,12 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 font-mono">Image de Couverture</label>
+                        <label for="add-game-image" class="block text-[10px] font-bold text-slate-500 uppercase mb-1 font-mono">Image de Couverture</label>
                         <input type="url" id="add-game-image" placeholder="Lien d'image (ex: Unsplash)"
                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-fuchsia-500">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1 font-mono">Chemin d'Exécution / Commande</label>
+                        <label for="add-game-path" class="block text-[10px] font-bold text-slate-500 uppercase mb-1 font-mono">Chemin d'Exécution / Commande</label>
                         <div class="flex gap-2">
                             <input type="text" id="add-game-path" placeholder="Ex: C:\Games\Forza5.exe" required
                                    class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-fuchsia-500 font-mono text-xs">

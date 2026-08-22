@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Python & DB
+__pycache__/
+*.pyc
+*.db

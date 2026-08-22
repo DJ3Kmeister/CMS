@@ -1,0 +1,3 @@
+## 2026-03-08 - SQLite WAL Mode & Query Indexing for Embedded Flask Server
+**Learning:** In embedded Python Flask applications running SQLite (especially on mobile/desktop local environments), default `ROLLBACK` journal mode and missing indexes on transaction and session tables cause high write locks and slow linear scans `O(N)` during frequent dashboard ticks and financial report generation.
+**Action:** Enable `PRAGMA journal_mode = WAL;` and `PRAGMA synchronous = NORMAL;` on connection, and add composite/single-column indexes on `transactions(created_at)`, `sessions(terminal_id, start_time)`, and `connection_logs(terminal_name, logout_time)`.

@@ -18,14 +18,19 @@ app.secret_key = 'senet_cybercafe_secret_key'
 
 # --- COUCHE DE BASE DE DONNÉES ---
 
+# CORRECTION : Le chemin exact créé par Android est org.dekdrivsim.dekdrivsim
 if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim/files'), 'cybercafe.db')
+    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
 else:
     DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
 
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.execute("PRAGMA busy_timeout = 30000;")
+    # BOLT OPTIMIZATION: WAL (Write-Ahead Logging) mode significantly improves read/write concurrency
+    # for concurrent terminal requests, while NORMAL synchronous level reduces disk I/O wait times safely.
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -170,6 +175,12 @@ def init_db():
     )
     ''')
     
+    # BOLT OPTIMIZATION: Create database indexes on fields queried frequently for reporting, logouts and calculations
+    # to dramatically accelerate page loads and statistics calculations from O(N) linear scan to O(log N) binary search.
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_terminal_id_start_time ON sessions(terminal_id, start_time);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_connection_logs_terminal_name_logout_time ON connection_logs(terminal_name, logout_time);")
+
     conn.commit()
     
     # Paramètres par défaut (sans écraser les modifications de l'admin)
@@ -1056,39 +1067,36 @@ def admin_reports_print():
     for tx in transactions:
         total_revenue += tx['amount']
         if tx['type'] == 'ticket_sale':
-# -*- coding: utf-8 -*-
-"""
-DEK-DRIVSIM CyberCafe - Serveur Central Unifié de Niveau Entreprise
-"""
+            ticket_count += 1
+            ticket_amount += tx['amount']
+        elif tx['type'] == 'player_recharge':
+            player_count += 1
+            player_amount += tx['amount']
+        else:
+            session_count += 1
+            session_amount += tx['amount']
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-import sqlite3
-import random
-import string
-from datetime import datetime, timedelta
-import os
-import csv
-import io
+    cursor.execute("SELECT COUNT(*) FROM sessions WHERE start_time >= ?", (start_date_str,))
+    total_sessions = cursor.fetchone()[0] or 0
 
-app = Flask(__name__)
-app.secret_key = 'senet_cybercafe_secret_key'
+    cursor.execute("""
+        SELECT t.name, COUNT(s.id) as count, SUM(s.time_spent_seconds) as total_seconds
+        FROM terminals t
+        LEFT JOIN sessions s ON t.id = s.terminal_id AND s.start_time >= ?
+        GROUP BY t.id
+    """, (start_date_str,))
+    terminals_usage = []
+    for row in cursor.fetchall():
+        term_dict = dict(row)
+        term_dict['total_seconds'] = term_dict['total_seconds'] or 0
+        terminals_usage.append(term_dict)
 
-# --- COUCHE DE BASE DE DONNÉES (DATABASE LAYER CONSOLIDATED) ---
+    conn.close()
 
-# CORRECTION : Le chemin exact créé par Android est org.dekdrivsim.dekdrivsim
-if 'ANDROID_ARGUMENT' in os.environ or os.environ.get('ANDROID_PRIVATE'):
-    DB_PATH = os.path.join(os.environ.get('ANDROID_PRIVATE', '/data/data/org.dekdrivsim.dekdrivsim/files'), 'cybercafe.db')
-else:
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'cybercafe.db')
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA busy_timeout = 30000;")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# [ ... TOUT LE RESTE DE TON CODE RESTE STRICTEMENT IDENTIQUE ... ]
-   'end_date': end_date_str,
+    report = {
+        'period_label': label,
+        'start_date': start_date_str,
+        'end_date': end_date_str,
         'total_sessions': total_sessions,
         'total_revenue': total_revenue,
         'breakdown': {
